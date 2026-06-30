@@ -59,12 +59,12 @@ RUN cd /root && \
     ldconfig /usr/local/lib/
 
 # Build ROS 2 Workspace ws_sensor_combined
-# px4_msgs + px4_ros_com on release/1.14 to match PX4 v1.14.0
+# NOTE: px4_msgs uses release/1.14; px4_ros_com uses release/v1.14 (different naming)
 RUN mkdir -p /root/ws_sensor_combined/src && \
     cd /root/ws_sensor_combined/src && \
     git clone --branch release/1.14 --depth 1 \
         https://github.com/PX4/px4_msgs.git && \
-    git clone --branch release/1.14 --depth 1 \
+    git clone --branch release/v1.14 --depth 1 \
         https://github.com/PX4/px4_ros_com.git && \
     /bin/bash -c "source /opt/ros/humble/setup.bash && \
                   cd /root/ws_sensor_combined && colcon build"
@@ -74,7 +74,7 @@ RUN mkdir -p /root/ws_offboard_control/src && \
     cd /root/ws_offboard_control/src && \
     git clone --branch release/1.14 --depth 1 \
         https://github.com/PX4/px4_msgs.git && \
-    git clone --branch release/1.14 --depth 1 \
+    git clone --branch release/v1.14 --depth 1 \
         https://github.com/PX4/px4_ros_com.git && \
     /bin/bash -c "source /opt/ros/humble/setup.bash && \
                   cd /root/ws_offboard_control && colcon build"
