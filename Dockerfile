@@ -90,7 +90,7 @@ RUN apt-get update && \
 # If you don't have a GPU, uncomment the CPU-only torch line below instead:
 # RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 RUN pip3 install \
-    "mavsdk==1.14.0" \
+    "mavsdk==1.4.9" \
     "aioconsole==0.6.1" \
     "pygame==2.5.2" \
     "opencv-python==4.9.0.80" \
