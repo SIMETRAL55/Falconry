@@ -3,7 +3,7 @@
 #   PX4-Autopilot    v1.14.0
 #   px4_msgs         release/1.14  ← MUST match PX4; silent DDS failure if wrong
 #   px4_ros_com      release/1.14
-#   Micro-XRCE-DDS   v2.4.2
+#   Micro-XRCE-DDS   v2.4.3  (v2.4.2 unbuildable: FastDDS 2.12.x branch deleted)
 #   empy             3.3.4         ← newer breaks colcon build of px4_ros_com
 #   ros_gz           ros-humble-ros-gzgarden  (Garden, not Fortress)
 #   numpy            <2            ← ultralytics 8.x requires numpy <2
@@ -51,7 +51,7 @@ RUN cd /root && \
 
 # Setup Micro XRCE-DDS Agent — pinned to v2.4.2
 RUN cd /root && \
-    git clone --branch v2.4.2 --depth 1 \
+    git clone --branch v2.4.3 --depth 1 \
         https://github.com/eProsima/Micro-XRCE-DDS-Agent.git && \
     cd Micro-XRCE-DDS-Agent && \
     mkdir build && cd build && \
