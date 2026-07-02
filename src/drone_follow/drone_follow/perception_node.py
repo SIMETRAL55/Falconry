@@ -21,6 +21,8 @@ from ultralytics import YOLO
 
 from drone_follow_msgs.msg import TargetState
 
+from .geometry import deproject, median_depth
+
 WINDOW = 'drone_follow: perception'
 
 
@@ -191,23 +193,13 @@ class PerceptionNode(Node):
         noisy and frequently lands on a hole."""
         if self.depth is None or self.K is None:
             return
-        H, W = self.depth.shape[:2]
-        hw = max(3.0, w / 4.0)
-        hh = max(3.0, h / 4.0)
-        x0, x1 = max(0, int(u - hw)), min(W, int(u + hw) + 1)
-        y0, y1 = max(0, int(v - hh)), min(H, int(v + hh) + 1)
-        patch = np.asarray(self.depth[y0:y1, x0:x1], dtype=np.float32)
-        patch = patch[np.isfinite(patch) & (patch > 0.0)]
-        if patch.size == 0:
+        Z = median_depth(self.depth, u, v, w, h)
+        if not math.isfinite(Z):
             return
-        Z = float(np.median(patch))
-        fx, fy = self.K[0, 0], self.K[1, 1]
-        cx, cy = self.K[0, 2], self.K[1, 2]
         st.range_m = Z
         # Camera optical frame: x right, y down, z forward.
-        st.position_cam.x = (u - cx) * Z / fx
-        st.position_cam.y = (v - cy) * Z / fy
-        st.position_cam.z = Z
+        p = deproject(u, v, Z, self.K)
+        st.position_cam.x, st.position_cam.y, st.position_cam.z = p
 
     # ---------------- display ----------------
 

@@ -21,7 +21,10 @@ class PID:
         d = 0.0 if self._prev_e is None or dt <= 0.0 else (e - self._prev_e) / dt
         self._prev_e = e
         u_unsat = self.kp * e + self._i + self.kd * d
-        # Conditional anti-windup: only integrate when not saturated.
-        if self.out_min < u_unsat < self.out_max:
+        # Conditional anti-windup: don't integrate further INTO saturation,
+        # but always allow integrating back OUT of it.
+        into_hi = u_unsat >= self.out_max and e > 0.0
+        into_lo = u_unsat <= self.out_min and e < 0.0
+        if not into_hi and not into_lo:
             self._i += self.ki * e * dt
         return clamp(u_unsat, self.out_min, self.out_max)
