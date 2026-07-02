@@ -133,3 +133,27 @@ def test_full_chain_camera_center_hit():
     p_frd = optical_to_frd(p_opt, 0.0, math.pi / 4)
     p_ned = frd_to_ned(p_frd, Q_IDENT, [0.0, 0.0, -6.0])
     assert p_ned == pytest.approx([6.0, 0.0, 0.0], abs=1e-6)
+
+
+# ---------------- RGB -> depth pixel mapping ----------------
+
+def test_rgb_to_depth_center_maps_to_center():
+    from drone_follow.geometry import rgb_to_depth_px
+    k = np.array([[1403.4, 0, 960.0], [0, 1403.4, 540.0], [0, 0, 1]])
+    u_d, v_d, scale = rgb_to_depth_px(960.0, 540.0, k, 640, 480, 1.274)
+    assert (u_d, v_d) == pytest.approx((320.0, 240.0))
+    assert 0 < scale < 1  # depth image is smaller
+
+
+def test_rgb_to_depth_matches_ray():
+    """Same optical ray through both cameras: deprojecting the mapped depth
+    pixel with depth intrinsics must give the same x/z as the RGB pixel
+    with RGB intrinsics."""
+    from drone_follow.geometry import rgb_to_depth_px
+    k = np.array([[1403.4, 0, 960.0], [0, 1403.4, 540.0], [0, 0, 1]])
+    hfov_d, dw, dh = 1.274, 640, 480
+    fx_d = (dw / 2) / math.tan(hfov_d / 2)
+    for u, v in ((100.0, 100.0), (1800.0, 900.0), (960.0, 1000.0)):
+        u_d, v_d, _ = rgb_to_depth_px(u, v, k, dw, dh, hfov_d)
+        assert (u - 960.0) / 1403.4 == pytest.approx((u_d - 320.0) / fx_d)
+        assert (v - 540.0) / 1403.4 == pytest.approx((v_d - 240.0) / fx_d)

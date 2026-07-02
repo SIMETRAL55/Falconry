@@ -63,9 +63,12 @@ def main():
     yaw_limit = ET.SubElement(yaw_axis, "limit")
     ET.SubElement(yaw_limit, "lower").text = "-1.57"
     ET.SubElement(yaw_limit, "upper").text = "1.57"
-    ET.SubElement(yaw_limit, "effort").text = "0.3"
+    # Effort/damping sized so the joint can slew ~2 rad/s — headless sim
+    # showed 0.3/3.0 caps the gimbal at 0.1 rad/s, far too slow to track a
+    # car circling at 5 m/s (needs ~0.33 rad/s). Needs human sim re-check.
+    ET.SubElement(yaw_limit, "effort").text = "2.0"
     yaw_dynamics = ET.SubElement(yaw_axis, "dynamics")
-    ET.SubElement(yaw_dynamics, "damping").text = "3.0"
+    ET.SubElement(yaw_dynamics, "damping").text = "0.5"
 
     # --- Add pitch joint: gimbal_link -> camera ---
     # The camera link is merged in from the OakD-Lite fuel model and is named
@@ -84,9 +87,9 @@ def main():
     # allows straight-down viewing. Positive pitch = camera down.
     ET.SubElement(pitch_limit, "lower").text = "-1.57"
     ET.SubElement(pitch_limit, "upper").text = "1.57"
-    ET.SubElement(pitch_limit, "effort").text = "0.3"
+    ET.SubElement(pitch_limit, "effort").text = "2.0"
     pitch_dynamics = ET.SubElement(pitch_axis, "dynamics")
-    ET.SubElement(pitch_dynamics, "damping").text = "3.0"
+    ET.SubElement(pitch_dynamics, "damping").text = "0.5"
 
     # --- Add JointPositionController for yaw (very low gains to avoid reaction torques) ---
     yaw_ctrl = ET.SubElement(model, "plugin",
@@ -94,11 +97,11 @@ def main():
                              name="gz::sim::systems::JointPositionController")
     ET.SubElement(yaw_ctrl, "joint_name").text = "gimbal_yaw_joint"
     ET.SubElement(yaw_ctrl, "topic").text = "/gimbal/cmd_yaw"
-    ET.SubElement(yaw_ctrl, "p_gain").text = "1.0"
+    ET.SubElement(yaw_ctrl, "p_gain").text = "2.0"
     ET.SubElement(yaw_ctrl, "i_gain").text = "0"
     ET.SubElement(yaw_ctrl, "d_gain").text = "0.1"
-    ET.SubElement(yaw_ctrl, "cmd_max").text = "0.3"
-    ET.SubElement(yaw_ctrl, "cmd_min").text = "-0.3"
+    ET.SubElement(yaw_ctrl, "cmd_max").text = "2.0"
+    ET.SubElement(yaw_ctrl, "cmd_min").text = "-2.0"
     ET.SubElement(yaw_ctrl, "initial_position").text = "0"
 
     # --- Add JointPositionController for pitch (very low gains to avoid reaction torques) ---
@@ -107,11 +110,11 @@ def main():
                                name="gz::sim::systems::JointPositionController")
     ET.SubElement(pitch_ctrl, "joint_name").text = "gimbal_pitch_joint"
     ET.SubElement(pitch_ctrl, "topic").text = "/gimbal/cmd_pitch"
-    ET.SubElement(pitch_ctrl, "p_gain").text = "1.0"
+    ET.SubElement(pitch_ctrl, "p_gain").text = "2.0"
     ET.SubElement(pitch_ctrl, "i_gain").text = "0"
     ET.SubElement(pitch_ctrl, "d_gain").text = "0.1"
-    ET.SubElement(pitch_ctrl, "cmd_max").text = "0.3"
-    ET.SubElement(pitch_ctrl, "cmd_min").text = "-0.3"
+    ET.SubElement(pitch_ctrl, "cmd_max").text = "2.0"
+    ET.SubElement(pitch_ctrl, "cmd_min").text = "-2.0"
     ET.SubElement(pitch_ctrl, "initial_position").text = str(INITIAL_PITCH)
 
     # --- Write modified SDF ---

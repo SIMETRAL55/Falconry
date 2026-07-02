@@ -22,7 +22,7 @@ from ultralytics import YOLO
 
 from drone_follow_msgs.msg import TargetState
 
-from .geometry import deproject, median_depth
+from .geometry import deproject, median_depth, rgb_to_depth_px
 
 WINDOW = 'drone_follow: perception'
 
@@ -45,6 +45,11 @@ class PerceptionNode(Node):
         # display:=false runs headless (no window, no click). Lock targets via
         # the /target/lock_id topic instead (also works with the window up).
         self.declare_parameter('display', True)
+        # Depth sensor horizontal FOV (rad). The OakD-Lite depth camera has a
+        # DIFFERENT fov/resolution than the RGB camera (SDF: 1.274 vs 1.204),
+        # needed to map RGB pixels onto the depth image. No depth CameraInfo
+        # is published by gz, hence a parameter.
+        self.declare_parameter('depth_hfov', 1.274)
 
         self.rgb_topic = self.get_parameter('rgb_topic').value
         self.depth_topic = self.get_parameter('depth_topic').value
@@ -64,6 +69,7 @@ class PerceptionNode(Node):
         self.tracks = {}             # id -> (xc, yc, w, h)
 
         self.display = bool(self.get_parameter('display').value)
+        self.depth_hfov = float(self.get_parameter('depth_hfov').value)
 
         self.create_subscription(Image, self.rgb_topic, self.on_rgb, 10)
         self.create_subscription(Image, self.depth_topic, self.on_depth, 10)
@@ -216,7 +222,11 @@ class PerceptionNode(Node):
         noisy and frequently lands on a hole."""
         if self.depth is None or self.K is None:
             return
-        Z = median_depth(self.depth, u, v, w, h)
+        # Depth image has different resolution/FOV than RGB: map the RGB
+        # pixel + bbox into depth-image coordinates before sampling.
+        dh, dw = self.depth.shape[:2]
+        u_d, v_d, scale = rgb_to_depth_px(u, v, self.K, dw, dh, self.depth_hfov)
+        Z = median_depth(self.depth, u_d, v_d, w * scale, h * scale)
         if not math.isfinite(Z):
             return
         st.range_m = Z

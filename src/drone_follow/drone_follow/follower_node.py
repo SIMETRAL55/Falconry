@@ -154,7 +154,9 @@ class FollowerNode(Node):
         self.tick += 1
         self.t += DT
         self.publish_offboard_mode()          # heartbeat FIRST, every tick
-        if self.auto_arm and self.tick == 25:  # ~1.25 s of setpoints streamed
+        # ~1.25 s of setpoints streamed first; re-send every 10 s in case the
+        # first request is rejected (EKF not ready yet, etc.).
+        if self.auto_arm and self.tick >= 25 and (self.tick - 25) % 200 == 0:
             self.engage_offboard_and_arm()
         self.step_state_machine()
         sp = self.compute_setpoint()

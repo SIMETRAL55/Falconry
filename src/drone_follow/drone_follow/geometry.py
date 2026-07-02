@@ -29,6 +29,26 @@ def median_depth(depth: np.ndarray, u: float, v: float,
     return float(np.median(patch))
 
 
+def rgb_to_depth_px(u: float, v: float, k_rgb: np.ndarray,
+                    depth_w: int, depth_h: int,
+                    depth_hfov: float) -> tuple:
+    """Map an RGB pixel to the corresponding depth-image pixel.
+
+    The RGB and depth sensors are CO-LOCATED (same SDF pose) but differ in
+    resolution AND field of view (OakD-Lite: RGB 1920x1080 hfov 1.204,
+    depth 640x480 hfov 1.274) — indexing the depth image with RGB pixel
+    coordinates is wrong. Same optical ray: x/z = (u-cx)/fx in both cameras.
+    Assumes square pixels on the depth sensor (fy_d = fx_d)."""
+    fx_d = (depth_w / 2.0) / math.tan(depth_hfov / 2.0)
+    cx_d, cy_d = depth_w / 2.0, depth_h / 2.0
+    fx_r, fy_r = k_rgb[0, 0], k_rgb[1, 1]
+    cx_r, cy_r = k_rgb[0, 2], k_rgb[1, 2]
+    u_d = cx_d + fx_d * (u - cx_r) / fx_r
+    v_d = cy_d + fx_d * (v - cy_r) / fy_r
+    scale = fx_d / fx_r    # bbox size scale factor RGB px -> depth px
+    return u_d, v_d, scale
+
+
 def deproject(u: float, v: float, z: float, k: np.ndarray) -> np.ndarray:
     """Pixel + depth -> camera OPTICAL frame 3D (x right, y down, z forward)."""
     fx, fy = k[0, 0], k[1, 1]
