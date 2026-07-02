@@ -52,8 +52,10 @@ class ImageSubscriber(Node):
     # Convert ROS Image message to OpenCV image
     current_frame = self.br.imgmsg_to_cv2(data, desired_encoding="bgr8")
     image = current_frame
-    # Object Detection
-    results = model.predict(image, classes=[0, 2])
+    # Object Detection + Tracking (Milestone 1): persist=True keeps ByteTrack
+    # state across frames so each detection carries a stable track id;
+    # .plot() overlays "id:N" on each box.
+    results = model.track(image, classes=[0, 2], persist=True, tracker="bytetrack.yaml")
     img = results[0].plot()
     # Show Results
     cv2.imshow('Detected Frame', img)    
