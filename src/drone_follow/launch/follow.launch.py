@@ -16,11 +16,10 @@ from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
-# Design §3 defaults — VERIFY with `gz topic -l` on the live sim.
-GZ_CAMERA_INFO = ('/world/default/model/x500_depth_0/link/camera_link'
-                  '/sensor/IMX214/camera_info')
-GZ_DEPTH = ('/world/default/model/x500_depth_0/link/camera_link'
-            '/sensor/StereoOV7251/depth_image')
+# CONFIRMED against the live sim (`gz topic -l`, PX4 v1.14 + OakD-Lite model):
+# sensors publish on plain names, not /world/... scoped paths.
+GZ_CAMERA_INFO = '/camera_info'
+GZ_DEPTH = '/depth_camera'
 
 
 def generate_launch_description():
@@ -70,10 +69,6 @@ def generate_launch_description():
                 f'{GZ_DEPTH}@sensor_msgs/msg/Image[gz.msgs.Image',
                 '/gimbal/cmd_pitch@std_msgs/msg/Float64]gz.msgs.Double',
                 '/gimbal/cmd_yaw@std_msgs/msg/Float64]gz.msgs.Double',
-            ],
-            remappings=[
-                (GZ_CAMERA_INFO, '/camera_info'),
-                (GZ_DEPTH, '/depth_camera'),
             ],
         ),
     ])

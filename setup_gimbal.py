@@ -78,8 +78,12 @@ def main():
     pitch_axis = ET.SubElement(pitch_joint, "axis")
     ET.SubElement(pitch_axis, "xyz").text = "0 1 0"
     pitch_limit = ET.SubElement(pitch_axis, "limit")
+    # Upper limit must exceed INITIAL_PITCH (0.7854) — with the old 0.5 the
+    # controller drove the joint into the limit at spawn and it stayed pinned
+    # there, ignoring all commands (verified in headless sim). 1.57 also
+    # allows straight-down viewing. Positive pitch = camera down.
     ET.SubElement(pitch_limit, "lower").text = "-1.57"
-    ET.SubElement(pitch_limit, "upper").text = "0.5"
+    ET.SubElement(pitch_limit, "upper").text = "1.57"
     ET.SubElement(pitch_limit, "effort").text = "0.3"
     pitch_dynamics = ET.SubElement(pitch_axis, "dynamics")
     ET.SubElement(pitch_dynamics, "damping").text = "3.0"

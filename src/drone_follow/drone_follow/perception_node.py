@@ -17,6 +17,7 @@ import rclpy
 from cv_bridge import CvBridge
 from rclpy.node import Node
 from sensor_msgs.msg import CameraInfo, Image
+from std_msgs.msg import Int32
 from ultralytics import YOLO
 
 from drone_follow_msgs.msg import TargetState
@@ -41,6 +42,9 @@ class PerceptionNode(Node):
         # this pixel radius of the last-known target center.
         self.declare_parameter('reacquire_gate_px', 150.0)  # UNTUNED default — needs sim tuning
         self.declare_parameter('reacquire_timeout_s', 5.0)  # UNTUNED default — needs sim tuning
+        # display:=false runs headless (no window, no click). Lock targets via
+        # the /target/lock_id topic instead (also works with the window up).
+        self.declare_parameter('display', True)
 
         self.rgb_topic = self.get_parameter('rgb_topic').value
         self.depth_topic = self.get_parameter('depth_topic').value
@@ -59,13 +63,19 @@ class PerceptionNode(Node):
         self.depth = None            # latest depth image (float meters)
         self.tracks = {}             # id -> (xc, yc, w, h)
 
+        self.display = bool(self.get_parameter('display').value)
+
         self.create_subscription(Image, self.rgb_topic, self.on_rgb, 10)
         self.create_subscription(Image, self.depth_topic, self.on_depth, 10)
         self.create_subscription(CameraInfo, self.info_topic, self.on_info, 10)
+        # Programmatic lock command: id >= 0 locks that track, -1 clears,
+        # -2 locks the largest visible bbox (headless convenience).
+        self.create_subscription(Int32, '/target/lock_id', self.on_lock_cmd, 10)
         self.pub = self.create_publisher(TargetState, '/target/state', 10)
 
-        cv2.namedWindow(WINDOW, cv2.WINDOW_NORMAL)
-        cv2.setMouseCallback(WINDOW, self.on_click)
+        if self.display:
+            cv2.namedWindow(WINDOW, cv2.WINDOW_NORMAL)
+            cv2.setMouseCallback(WINDOW, self.on_click)
         self.get_logger().info(
             f'perception up: rgb={self.rgb_topic} depth={self.depth_topic} '
             f'info={self.info_topic} classes={self.classes}')
@@ -89,6 +99,18 @@ class PerceptionNode(Node):
                 self.set_lock(tid, 'click')
                 return
         self.get_logger().info('click missed all tracked boxes')
+
+    def on_lock_cmd(self, msg: Int32):
+        if msg.data == -1:
+            self.locked_id = -1
+            self.last_uv = None
+            self.lost_since = None
+            self.get_logger().info('lock cleared (command)')
+        elif msg.data == -2 and self.tracks:
+            biggest = max(self.tracks, key=lambda t: self.tracks[t][2] * self.tracks[t][3])
+            self.set_lock(biggest, 'command:largest')
+        elif msg.data >= 0:
+            self.set_lock(int(msg.data), 'command')
 
     def handle_key(self, key: int):
         """Keyboard fallback: [ / ] cycle ids, c clears the lock."""
@@ -153,8 +175,9 @@ class PerceptionNode(Node):
                     self.fill_3d(st, xc, yc, w, h)
 
         self.pub.publish(st)
-        self.draw(frame)
-        self.handle_key(cv2.waitKey(1) & 0xFF)
+        if self.display:
+            self.draw(frame)
+            self.handle_key(cv2.waitKey(1) & 0xFF)
 
     def try_reacquire(self, msg: Image):
         """ByteTrack reassigns ids after occlusion, so id-lock alone fails
