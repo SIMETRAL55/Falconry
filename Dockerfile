@@ -104,6 +104,11 @@ COPY models/. /root/.gz/models/
 COPY models_docker/. /root/.gz/fuel/fuel.ignitionrobotics.org/openrobotics/models/
 COPY worlds/default_docker.sdf /root/PX4-Autopilot/Tools/simulation/gz/worlds/default.sdf
 
+# Pre-fetch the OakD-Lite camera model so the x500_depth spawn does not
+# depend on (and flakily time out on) a fuel.gazebosim.org download at
+# first sim start.
+RUN gz fuel download -u https://fuel.gazebosim.org/1.0/RudisLaboratories/models/OakD-Lite
+
 # Setup gimbal joints for camera control
 RUN python3 /root/PX4-ROS2-Gazebo-YOLOv8/setup_gimbal.py
 
