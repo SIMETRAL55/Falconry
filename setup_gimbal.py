@@ -67,10 +67,14 @@ def main():
     yaw_dynamics = ET.SubElement(yaw_axis, "dynamics")
     ET.SubElement(yaw_dynamics, "damping").text = "3.0"
 
-    # --- Add pitch joint: gimbal_link -> camera_link ---
+    # --- Add pitch joint: gimbal_link -> camera ---
+    # The camera link is merged in from the OakD-Lite fuel model and is named
+    # "OakD-Lite/base_link" (see `git show HEAD:...model.sdf` CameraJoint).
+    # There is NO link named "camera_link"; using it breaks the SDF pose graph
+    # and the model can never spawn.
     pitch_joint = ET.SubElement(model, "joint", name="gimbal_pitch_joint", type="revolute")
     ET.SubElement(pitch_joint, "parent").text = "gimbal_link"
-    ET.SubElement(pitch_joint, "child").text = "camera_link"
+    ET.SubElement(pitch_joint, "child").text = "OakD-Lite/base_link"
     pitch_axis = ET.SubElement(pitch_joint, "axis")
     ET.SubElement(pitch_axis, "xyz").text = "0 1 0"
     pitch_limit = ET.SubElement(pitch_axis, "limit")
