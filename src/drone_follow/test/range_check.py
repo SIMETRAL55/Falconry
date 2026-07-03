@@ -1,13 +1,27 @@
 #!/usr/bin/env python3
 """Milestone 3 exit check: deprojected range_m vs true sim distance.
 
-Parks the car (teleport via gz set_pose), locks it, and compares range_m
-against gz ground truth EVENT-DRIVEN (on each visible TargetState, truth
-sampled at most once per second) — the car is static so timing skew is nil.
+Parks the car (teleport via gz set_pose), levels the gimbal, locks the
+car, and compares range_m against gz ground truth EVENT-DRIVEN (on each
+visible TargetState, truth sampled at most once per second) — the car is
+static so timing skew is nil.
+
+BACKGROUND (found via a headless GUI screenshot debugging session — see
+project memory / commit history): the drone rests on the ground disarmed,
+so its camera (spawn default: 45 deg down) needs to be closer to LEVEL to
+see a target at roughly the same elevation (drone/car both near the track
+surface). Confirmed visually: pitch=-0.15 rad centers the car well.
+A one-shot `gz topic -t ... -p ...` CLI publish is UNRELIABLE — it races
+subscriber discovery and is frequently dropped silently. This script uses
+a real rclpy publisher instead (kept alive, publishes periodically),
+which is also how follower_node drives the gimbal in production — the
+one-shot pitfall never affected the actual flight code, only ad hoc CLI
+debugging.
 
 Reports raw error vs car-CENTER distance and error vs the car's near
-SURFACE (depth cameras measure the surface; a hatchback is ~4 m long, so
-the center sits ~1 m behind what the camera sees).
+SURFACE (depth cameras measure the surface; a hatchback's half-length is
+roughly 1.8-2.2 m, so the center sits that much behind what the camera
+sees looking at the rear of the car).
 """
 
 import math
@@ -18,18 +32,20 @@ import time
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Int32
+from std_msgs.msg import Float64, Int32
 
 from drone_follow_msgs.msg import TargetState
 
 RUN_S = 120.0
 CAR = 'hatchback_blue_1'
 DRONE = 'x500_depth_0'
-# ~8.5 m ahead of the drone spawn (268.08,-128.22, yaw -0.7):
-# forward = (cos -0.7, sin -0.7) = (0.765, -0.644). Static, inside the
-# 19.1 m depth clip and the initial search sweep.
-CAR_POSE = (274.6, -133.7, 2.6, 0.9)   # x, y, z, yaw
-SURFACE_OFFSET = 1.0                    # m, approx car half-extent toward camera
+# ~6 m ahead of the drone spawn (268.08,-128.22, yaw -0.7), visually
+# confirmed in the sim GUI to be a clean, unoccluded view of the car's
+# rear from the drone's resting position.
+CAR_POSE = (272.67, -132.09, 2.76, 0.0)   # x, y, z, yaw
+GIMBAL_PITCH = -0.15   # rad; visually confirmed to center this specific target
+GIMBAL_YAW = 0.0
+SURFACE_OFFSET = 2.0    # m, approx car half-length toward camera (rear view)
 
 
 def gz_pos(name):
@@ -60,9 +76,15 @@ class RangeCheck(Node):
         self.tgt = None
         self.create_subscription(TargetState, '/target/state', self.on_t, 10)
         self.lock_pub = self.create_publisher(Int32, '/target/lock_id', 10)
+        self.gp_pub = self.create_publisher(Float64, '/gimbal/cmd_pitch', 10)
+        self.gy_pub = self.create_publisher(Float64, '/gimbal/cmd_yaw', 10)
 
     def on_t(self, m):
         self.tgt = m
+
+    def drive_gimbal(self):
+        self.gp_pub.publish(Float64(data=GIMBAL_PITCH))
+        self.gy_pub.publish(Float64(data=GIMBAL_YAW))
 
 
 def main():
@@ -73,6 +95,7 @@ def main():
     errs_center, errs_surface = [], []
     last_truth = 0.0
     while time.monotonic() - t0 < RUN_S:
+        n.drive_gimbal()   # keep publishing — no follower_node is running here
         rclpy.spin_once(n, timeout_sec=0.1)
         now = time.monotonic()
         if n.tgt is None:
