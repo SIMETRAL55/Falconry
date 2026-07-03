@@ -25,7 +25,10 @@ from drone_follow_msgs.msg import TargetState
 RUN_S = 120.0
 CAR = 'hatchback_blue_1'
 DRONE = 'x500_depth_0'
-CAR_POSE = (280.0, -140.0, 2.6, 0.0)   # x, y, z, yaw — circle center, static
+# ~8.5 m ahead of the drone spawn (268.08,-128.22, yaw -0.7):
+# forward = (cos -0.7, sin -0.7) = (0.765, -0.644). Static, inside the
+# 19.1 m depth clip and the initial search sweep.
+CAR_POSE = (274.6, -133.7, 2.6, 0.9)   # x, y, z, yaw
 SURFACE_OFFSET = 1.0                    # m, approx car half-extent toward camera
 
 
