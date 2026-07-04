@@ -63,6 +63,7 @@ class FollowerNode(Node):
         self.declare_parameter('reacquire_timeout_s', 8.0)      # UNTUNED default — needs sim tuning
         self.declare_parameter('search_yaw_amplitude', 1.0)     # rad; UNTUNED default — needs sim tuning
         self.declare_parameter('search_yaw_period_s', 12.0)     # UNTUNED default — needs sim tuning
+        self.declare_parameter('search_pitch', 0.7854)  # rad, + = down; UNTUNED default — needs sim tuning
         # Convenience for SITL testing: stream setpoints, then switch to
         # offboard + arm via VehicleCommand (like px4_ros_com offboard example).
         self.declare_parameter('auto_arm', False)
@@ -80,6 +81,7 @@ class FollowerNode(Node):
         self.reacq_timeout = float(gp('reacquire_timeout_s').value)
         self.search_amp = float(gp('search_yaw_amplitude').value)
         self.search_period = float(gp('search_yaw_period_s').value)
+        self.search_pitch = float(gp('search_pitch').value)
         self.auto_arm = bool(gp('auto_arm').value)
 
         self.pid_d = PID(float(gp('kp_standoff').value),
@@ -97,7 +99,7 @@ class FollowerNode(Node):
         self.odom: VehicleOdometry | None = None
         self.cam_w = self.cam_h = None
         self.cam_cx = self.cam_cy = None
-        self.gimbal_pitch = 0.7854    # matches setup_gimbal.py initial position
+        self.gimbal_pitch = self.search_pitch
         self.gimbal_yaw = 0.0
         self.t = 0.0                  # local timer clock for the search sweep
         self.tick = 0
@@ -257,9 +259,14 @@ class FollowerNode(Node):
 
     def drive_gimbal(self):
         if self.state == 'SEARCH':
-            # Slow sinusoidal yaw sweep while waiting for a target.
+            # Slow sinusoidal yaw sweep while waiting for a target. Pitch is
+            # reset to the search default too -- otherwise it stays frozen
+            # at whatever FOLLOW/REACQUIRE last left it at (e.g. tilted up
+            # from a prior lock), which can point the camera above any
+            # ground-level target and make re-acquisition impossible.
             self.gimbal_yaw = self.search_amp * math.sin(
                 2.0 * math.pi * self.t / self.search_period)
+            self.gimbal_pitch = self.search_pitch
         elif self.state in ('FOLLOW',) and self.tgt is not None \
                 and self.tgt.target_visible and self.cam_w:
             # Normalized pixel errors; incremental absolute-position command.
