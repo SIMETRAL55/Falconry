@@ -79,12 +79,39 @@ RUN mkdir -p /root/ws_offboard_control/src && \
     /bin/bash -c "source /opt/ros/humble/setup.bash && \
                   cd /root/ws_offboard_control && colcon build"
 
-# ros_gz Garden bridge.
-# ros-humble-ros-gzgarden is the correct Garden package.
-# DO NOT use ros-humble-ros-gz (apt default) — that is Fortress and conflicts with Garden.
-RUN apt-get update && \
-    apt-get install -y ros-humble-ros-gzgarden && \
-    rm -rf /var/lib/apt/lists/*
+# ros_gz Garden bridge — BUILT FROM SOURCE. Do not "fix" this back to an
+# apt package without reading this whole comment first.
+#
+# ros-humble-ros-gzgarden (the distro-suffixed apt package this used to
+# install) has been REMOVED from packages.ros.org entirely (confirmed via
+# `apt-cache madison ros-humble-ros-gzgarden` returning zero results — not
+# superseded, just gone). osrf/ros:humble-desktop-full now ships a
+# same-named-downstream but DIFFERENT replacement,
+# ros-humble-ros-gz-{bridge,sim,image,interfaces}, pre-installed. It looks
+# like a drop-in (same ros_gz_bridge/ros_gz_sim package names) but is NOT:
+# its parameter_bridge binary links against libignition-transport11
+# (Fortress-era), while gz-garden (installed above via PX4's own setup
+# script) is libgz-transport12. These are incompatible major versions of
+# the transport library — the bridge process cannot discover or exchange
+# messages with the simulator AT ALL. Symptom: `gz topic echo` shows data
+# fine, Gazebo renders fine, but `ros2 topic echo /camera` (or any bridged
+# topic) shows nothing, ever. Confirmed by hand with `ldd` on both
+# binaries before writing this.
+#
+# Setting GZ_VERSION=garden as a Dockerfile ENV var does NOT fix this —
+# that only affects ros_gz's *source* package.xml conditional
+# dependencies at build time; it has zero effect on an apt package the
+# ROS buildfarm already compiled with its own GZ_VERSION. Confirmed the
+# hard way. The only real fix is compiling ros_gz ourselves against the
+# gz-garden dev packages that are actually installed.
+RUN mkdir -p /root/ros_gz_ws/src && \
+    cd /root/ros_gz_ws/src && \
+    git clone -b caguero/humble_garden --depth 1 \
+        https://github.com/gazebosim/ros_gz.git && \
+    /bin/bash -c "source /opt/ros/humble/setup.bash && \
+                  export GZ_VERSION=garden && \
+                  cd /root/ros_gz_ws && \
+                  colcon build --packages-select ros_gz_interfaces ros_gz_bridge"
 
 # Python runtime deps — pinned.
 # If you don't have a GPU, uncomment the CPU-only torch line below instead:
@@ -113,8 +140,13 @@ RUN gz fuel download -u https://fuel.gazebosim.org/1.0/RudisLaboratories/models/
 RUN python3 /root/PX4-ROS2-Gazebo-YOLOv8/setup_gimbal.py
 
 # Shell setup
-RUN echo "source /root/ws_sensor_combined/install/setup.bash" >> /root/.bashrc && \
-    echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc && \
+# ros_gz_ws sourced LAST so its from-source ros_gz_bridge/ros_gz_interfaces
+# overlay/shadow the broken apt ros-humble-ros-gz-* packages baked into
+# the base image (see the long comment above the ros_gz build step).
+RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc && \
+    echo "source /root/ws_sensor_combined/install/setup.bash" >> /root/.bashrc && \
+    echo "source /root/ros_gz_ws/install/setup.bash" >> /root/.bashrc && \
+    echo "export GZ_VERSION=garden" >> /root/.bashrc && \
     echo "export GZ_SIM_RESOURCE_PATH=/root/.gz/models" >> /root/.bashrc && \
     echo "export PATH=\$PATH:/root/.local/bin" >> /root/.bashrc
 
