@@ -19,7 +19,7 @@ setup(
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='Wasim Shaikh',
-    maintainer_email='wasim.shaikh@lexxpluss.com',
+    maintainer_email='artemis78686@gmail.com',
     description='Detect-select-follow: perception and 20 Hz offboard follower for PX4.',
     license='MIT',
     tests_require=['pytest'],

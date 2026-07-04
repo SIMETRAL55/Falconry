@@ -4,7 +4,7 @@
   <name>drone_follow</name>
   <version>0.1.0</version>
   <description>Detect-select-follow: perception (YOLOv8+ByteTrack) and 20 Hz offboard follower for PX4.</description>
-  <maintainer email="wasim.shaikh@lexxpluss.com">Wasim Shaikh</maintainer>
+  <maintainer email="artemis78686@gmail.com">Wasim Shaikh</maintainer>
   <license>MIT</license>
 
   <depend>rclpy</depend>

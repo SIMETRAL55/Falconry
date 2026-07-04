@@ -4,7 +4,7 @@
   <name>drone_follow_msgs</name>
   <version>0.1.0</version>
   <description>Messages for the drone detect-select-follow stack (TargetState).</description>
-  <maintainer email="wasim.shaikh@lexxpluss.com">Wasim Shaikh</maintainer>
+  <maintainer email="artemis78686@gmail.com">Wasim Shaikh</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
