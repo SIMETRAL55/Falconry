@@ -65,17 +65,23 @@ async def getKeyboardInput(my_drone):
         elif kp.getKey("i"):
             asyncio.ensure_future(print_flight_mode(my_drone))
         elif kp.getKey("r"):
-            try:
-                await my_drone.action.arm()
-                log("-- Armed!")
-            except Exception as e:
-                log(f"-- Arm failed: {e}")
+            if not is_connected:
+                log("-- Not connected yet, wait for '-- Ready!' before arming.")
+            else:
+                try:
+                    await my_drone.action.arm()
+                    log("-- Armed!")
+                except Exception as e:
+                    log(f"-- Arm failed: {e}")
         elif kp.getKey("l"):
-            try:
-                await my_drone.action.land()
-                log("-- Landing!")
-            except Exception as e:
-                log(f"-- Land failed: {e}")
+            if not is_connected:
+                log("-- Not connected yet, wait for '-- Ready!' before landing.")
+            else:
+                try:
+                    await my_drone.action.land()
+                    log("-- Landing!")
+                except Exception as e:
+                    log(f"-- Land failed: {e}")
 
         # Gimbal controls
         if kp.getKey("j"):
