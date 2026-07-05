@@ -94,6 +94,7 @@ class FollowerNode(Node):
         # ---- state ----
         self.state = 'SEARCH'
         self.tgt: TargetState | None = None
+        self.tgt_is_new = False   # set on_target(), consumed once by drive_gimbal()
         self.lost = 0                 # consecutive not-visible TargetState msgs
         self.reacq_started = None     # sim-time seconds when REACQUIRE entered
         self.odom: VehicleOdometry | None = None
@@ -144,6 +145,7 @@ class FollowerNode(Node):
 
     def on_target(self, m: TargetState):
         self.tgt = m
+        self.tgt_is_new = True  # consumed once by drive_gimbal(), see below
         if m.target_visible:
             self.lost = 0
             self.update_target_world(m)
@@ -268,8 +270,16 @@ class FollowerNode(Node):
                 2.0 * math.pi * self.t / self.search_period)
             self.gimbal_pitch = self.search_pitch
         elif self.state in ('FOLLOW',) and self.tgt is not None \
-                and self.tgt.target_visible and self.cam_w:
+                and self.tgt.target_visible and self.cam_w and self.tgt_is_new:
             # Normalized pixel errors; incremental absolute-position command.
+            # GATED on a fresh perception message: this timer runs at 20 Hz
+            # but perception publishes at YOLO's (much slower, variable)
+            # inference rate. Without this gate, the same stale pixel error
+            # got re-added on every extra 20 Hz tick between two perception
+            # frames -- silently multiplying the effective gain by however
+            # many ticks fit in one perception period, causing the gimbal
+            # to snap to its clamp limits right after lock instead of
+            # smoothly centering.
             e_pitch = (self.tgt.v - self.cam_cy) / self.cam_h
             e_yaw = (self.tgt.u - self.cam_cx) / self.cam_w
             # Target below center (v>cy) -> pitch camera DOWN (+, gz frame).
@@ -278,6 +288,7 @@ class FollowerNode(Node):
             # gimbal yaw (gz yaw + = left).
             self.gimbal_yaw += -self.kp_gy * e_yaw
         # REACQUIRE/HOLD: freeze gimbal at last-known bearing.
+        self.tgt_is_new = False
 
         self.gimbal_pitch = clamp(self.gimbal_pitch,
                                   GIMBAL_PITCH_MIN, GIMBAL_PITCH_MAX)
